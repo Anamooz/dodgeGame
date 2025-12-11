@@ -4,36 +4,47 @@
 
 int main()
 {
-    sf::RenderWindow window(sf::VideoMode({800, 600}), "SFML window");
+    sf::RenderWindow window(sf::VideoMode({800, 600}), "Dodge Game");
     window.setFramerateLimit(60);
 
-    // Load texture (sprite idle sheet)
-    sf::Texture texture;
-    if (!texture.loadFromFile("Assets/Main Characters/Pink Man/Idle (32x32).png")) {
-        std::cout << "Failed to load texture\n";
+    // Load idle texture
+    sf::Texture idleTexture;
+    if (!idleTexture.loadFromFile("Assets/Main Characters/Pink Man/Idle (32x32).png")) {
+        std::cout << "Failed to load idle texture\n";
+        return -1;
+    }
+
+    // Load run texture 
+    sf::Texture runTexture;
+    if (!runTexture.loadFromFile("Assets/Main Characters/Pink Man/Run (32x32).png")) {
+        std::cout << "Failed to load run texture\n";
         return -1;
     }
 
     // ------Sprite setup--------
-    sf::Sprite sprite(texture);
+    sf::Sprite sprite(idleTexture); //start idle texture
     sprite.setTextureRect(sf::IntRect{ {0, 0}, {32, 32} });
     sprite.setOrigin({16.f, 16.f});
     sprite.setPosition({400.f, 300.f});
 
     // Animation variables
-    const int frameCount = 11;
-    const int frameWidth = 32;
-    const int frameHeight = 32;
+    const int idleFrames = 11; // Number of frames in idle animation
+    const int runFrames  = 12; // Number of frames in run animation
 
     int currentFrame = 0;
     float frameTimer = 0.f;
-    float frameSpeed = 0.1f;   // seconds per frame
+    float frameSpeed = 0.10f;
 
-    sf::Clock clock;
+    // Keep track of current texture pointer
+    const sf::Texture* currentTexture = &idleTexture;
 
     // ------Movement setup--------
     float speed = 200.f;       // pixels per second
     bool facingLeft = false;
+
+
+    sf::Clock clock;
+
 
     while (window.isOpen()){
         while (auto event = window.pollEvent()){
@@ -68,24 +79,35 @@ int main()
         sprite.setScale({facingLeft ? -1.f : 1.f, 1.f});
 
         // --- ANIMATION ---
-                if (moving){
-                    frameTimer += dt;
-                    if (frameTimer >= frameSpeed){
-                        frameTimer = 0.f;
-                        currentFrame = (currentFrame + 1) % frameCount;
+        frameTimer += dt;
 
-                        sprite.setTextureRect(sf::IntRect{
-                            {currentFrame * frameWidth, 0},
-                            {frameWidth, frameHeight}
-                        });
-                    }
-                }
-                else
-                {
-                    // Idle frame (frame 0)
-                    currentFrame = 0;
-                    sprite.setTextureRect(sf::IntRect{ {0, 0}, {32, 32} });
-                }
+        // --- SWITCH TEXTURE IF STATE CHANGES ---
+        if (moving && currentTexture != &runTexture){
+            sprite.setTexture(runTexture, false); //keep false so the rect isn't reset to full png
+            currentTexture = &runTexture;
+            currentFrame = 0;
+            frameTimer = 0.f;
+            sprite.setTextureRect(sf::IntRect{{0,0},{32,32}}); //keeps rect correct even if the above false is removed
+        }
+        else if (!moving && currentTexture != &idleTexture)
+        {
+            sprite.setTexture(idleTexture, false);
+            currentTexture = &idleTexture;
+            currentFrame = 0;
+            frameTimer = 0.f;
+            sprite.setTextureRect(sf::IntRect{{0,0},{32,32}});
+        }
+
+        // Advance frame timer
+        if (frameTimer >= frameSpeed){
+            frameTimer = 0.f;
+            if (moving)
+                currentFrame = (currentFrame + 1) % runFrames;
+            else
+                currentFrame = (currentFrame + 1) % idleFrames;
+
+            sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
+        }
 
         // Rendering
         window.clear();
