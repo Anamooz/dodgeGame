@@ -11,6 +11,7 @@ int main(){
 
     sf::Texture idleTexture;
     sf::Texture runTexture;
+    sf::Texture terrainTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         return -1;
@@ -18,6 +19,38 @@ int main(){
 
     if(!loadTexture(runTexture, "Assets/Main Characters/Pink Man/Run (32x32).png")){
         return -1;
+    }
+
+    if(!loadTexture(terrainTexture, "Assets/Terrain/Terrain (16x16).png")){
+        return -1;
+    }  
+
+    // ------Terrain setup--------
+    sf::Sprite terrainTile(terrainTexture);
+    terrainTile.setTextureRect(sf::IntRect{ {0,0},{16,16} }); 
+
+    const int tileSize = 16;
+    int windowWidth = window.getSize().x;
+    int windowHeight = window.getSize().y;
+
+    // How many tiles fit horizontally
+    int tileCount = windowWidth / tileSize + 1; // +1 in case of rounding
+    // --- Pre-create terrain tiles in a vector ---
+    std::vector<sf::Sprite> terrainRow;
+    terrainRow.reserve(tileCount); // avoids reallocations
+
+    for (int i = 0; i < tileCount; ++i){
+        sf::Sprite tile(terrainTexture);
+
+        tile.setTextureRect(sf::IntRect{{128, 0}, {tileSize, tileSize}});
+
+        // Set position using explicit floats to avoid narrowing warnings
+        tile.setPosition(sf::Vector2f(
+            static_cast<float>(i * tileSize),
+            static_cast<float>(windowHeight - tileSize)
+        ));
+
+        terrainRow.push_back(tile);
     }
 
     // ------Sprite setup--------
@@ -44,7 +77,7 @@ int main(){
 
     sf::Clock clock;
 
-
+    // ------Game loop--------
     while (window.isOpen()){
         while (auto event = window.pollEvent()){
             if (event->is<sf::Event::Closed>())
@@ -110,8 +143,13 @@ int main(){
             sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
         }
 
-        // Rendering
+        // -------Rendering---------
         window.clear();
+
+        // Draw terrain
+        for (auto &tile : terrainRow){
+            window.draw(tile);
+        }
         window.draw(sprite);
         window.display();
     }
