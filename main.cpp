@@ -2,22 +2,21 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 
-int main()
-{
+bool loadTexture(sf::Texture& texture, const std::string& path);
+void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window);
+
+int main(){
     sf::RenderWindow window(sf::VideoMode({800, 600}), "Dodge Game");
     window.setFramerateLimit(60);
 
-    // Load idle texture
     sf::Texture idleTexture;
-    if (!idleTexture.loadFromFile("Assets/Main Characters/Pink Man/Idle (32x32).png")) {
-        std::cout << "Failed to load idle texture\n";
+    sf::Texture runTexture;
+
+    if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         return -1;
     }
 
-    // Load run texture 
-    sf::Texture runTexture;
-    if (!runTexture.loadFromFile("Assets/Main Characters/Pink Man/Run (32x32).png")) {
-        std::cout << "Failed to load run texture\n";
+    if(!loadTexture(runTexture, "Assets/Main Characters/Pink Man/Run (32x32).png")){
         return -1;
     }
 
@@ -75,6 +74,8 @@ int main()
             moving = true;
         }
 
+        clampToScreen(sprite, window);
+
         // Flip sprite by using scale
         sprite.setScale({facingLeft ? -1.f : 1.f, 1.f});
 
@@ -115,3 +116,34 @@ int main()
         window.display();
     }
 }
+
+bool loadTexture(sf::Texture& texture, const std::string& path){
+    if (!texture.loadFromFile(path)){
+        std::cout << "Failed to load: " << path << "\n";
+        return false;
+    }
+    return true;
+}
+
+void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window){
+    auto bounds = sprite.getLocalBounds();  // Get the actual local size of the sprite (32x32)
+    float halfW = bounds.size.x * 0.5f;     // =16
+    float halfH = bounds.size.y * 0.5f;
+
+    float left   = 0 + halfW;
+    float right  = window.getSize().x - halfW;
+    float top    = 0 + halfH;
+    float bottom = window.getSize().y - halfH;
+
+    sf::Vector2f pos = sprite.getPosition();
+
+    if (pos.x < left)  pos.x = left;
+    if (pos.x > right) pos.x = right;
+    if (pos.y < top)   pos.y = top;
+    if (pos.y > bottom)pos.y = bottom;
+
+    sprite.setPosition(pos);
+}
+
+
+
