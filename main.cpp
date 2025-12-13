@@ -30,6 +30,7 @@ int main(){
     terrainTile.setTextureRect(sf::IntRect{ {0,0},{16,16} }); 
 
     const int tileSize = 16;
+    const int terrainRows = 2;
     int windowWidth = window.getSize().x;
     int windowHeight = window.getSize().y;
 
@@ -38,20 +39,27 @@ int main(){
     // --- Pre-create terrain tiles in a vector ---
     std::vector<sf::Sprite> terrainRow;
     terrainRow.reserve(tileCount); // avoids reallocations
+    sf::IntRect dirtRect {{144, 0}, {tileSize, tileSize}};
+    sf::IntRect grassRect {{128, 0}, {tileSize, tileSize}};
 
-    for (int i = 0; i < tileCount; ++i){
-        sf::Sprite tile(terrainTexture);
+    for(int i = 0; i < terrainRows; ++i){
+        for (int j = 0; j < tileCount; ++j){
+            sf::Sprite tile(terrainTexture);
 
-        tile.setTextureRect(sf::IntRect{{128, 0}, {tileSize, tileSize}});
+            if(i == 0)
+                tile.setTextureRect(dirtRect);
+            else
+                tile.setTextureRect(grassRect);
 
-        // Set position using explicit floats to avoid narrowing warnings
-        tile.setPosition(sf::Vector2f(
-            static_cast<float>(i * tileSize),
-            static_cast<float>(windowHeight - tileSize)
-        ));
+            // Set position using explicit floats to avoid narrowing warnings
+            tile.setPosition(sf::Vector2f(
+                static_cast<float>(j * tileSize),
+                static_cast<float>(windowHeight - tileSize * (i + 1))
+            ));
 
-        terrainRow.push_back(tile);
-    }
+            terrainRow.push_back(tile);
+        }
+    }   
 
     // ------Sprite setup--------
     sf::Sprite sprite(idleTexture); //start idle texture
