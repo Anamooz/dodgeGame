@@ -31,6 +31,11 @@ int main(){
 
     const int tileSize = 16;
     const int terrainRows = 2;
+    const float tileSizeFloat = 16.f;
+    const float playerHalf = 16.f; // 32x32 sprite
+    float grassTopY = window.getSize().y - tileSizeFloat * 2;
+
+    
     int windowWidth = window.getSize().x;
     int windowHeight = window.getSize().y;
 
@@ -65,7 +70,8 @@ int main(){
     sf::Sprite sprite(idleTexture); //start idle texture
     sprite.setTextureRect(sf::IntRect{ {0, 0}, {32, 32} });
     sprite.setOrigin({16.f, 16.f});
-    sprite.setPosition({400.f, 300.f});
+    sprite.setPosition({400.f, grassTopY - playerHalf});
+
 
     // Animation variables
     const int idleFrames = 11; // Number of frames in idle animation
