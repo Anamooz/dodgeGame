@@ -12,6 +12,7 @@ int main(){
     sf::Texture idleTexture;
     sf::Texture runTexture;
     sf::Texture terrainTexture;
+    sf::Texture skyTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         return -1;
@@ -23,11 +24,26 @@ int main(){
 
     if(!loadTexture(terrainTexture, "Assets/Terrain/Terrain (16x16).png")){
         return -1;
-    }  
+    } 
+    
+    if(!loadTexture(skyTexture, "Assets/Background/orig_big.png")){
+        return -1;
+    } 
 
     // ------Terrain setup--------
     sf::Sprite terrainTile(terrainTexture);
     terrainTile.setTextureRect(sf::IntRect{ {0,0},{16,16} }); 
+
+    sf::Sprite skySprite(skyTexture);
+    sf::Vector2u texSize = skyTexture.getSize(); // Scale sky to fill window
+    sf::Vector2u winSize = window.getSize();
+
+    skySprite.setScale(sf::Vector2f(
+        static_cast<float>(winSize.x) / texSize.x,
+        static_cast<float>(winSize.y) / texSize.y
+    ));
+
+    skySprite.setPosition(sf::Vector2f(0.f, 0.f));
 
     const int tileSize = 16;
     const int terrainRows = 2;
@@ -39,30 +55,29 @@ int main(){
     int windowWidth = window.getSize().x;
     int windowHeight = window.getSize().y;
 
-    // How many tiles fit horizontally
-    int tileCount = windowWidth / tileSize + 1; // +1 in case of rounding
-    // --- Pre-create terrain tiles in a vector ---
-    std::vector<sf::Sprite> terrainRow;
-    terrainRow.reserve(tileCount); // avoids reallocations
+    int tileWidth = windowWidth / tileSize + 1; // +1 in case of rounding, tiles fitting horizontally
+    int tileHeight = windowHeight / tileSize + 1; // tiles fitting vertically
+    
+    std::vector<sf::Sprite> terrainRow; // Pre-create terrain tiles in a vector
+    terrainRow.reserve(tileWidth); // avoids reallocations
     sf::IntRect dirtRect {{144, 0}, {tileSize, tileSize}};
     sf::IntRect grassRect {{128, 0}, {tileSize, tileSize}};
 
     for(int i = 0; i < terrainRows; ++i){
-        for (int j = 0; j < tileCount; ++j){
-            sf::Sprite tile(terrainTexture);
+        for (int j = 0; j < tileWidth; ++j){
 
             if(i == 0)
-                tile.setTextureRect(dirtRect);
+                terrainTile.setTextureRect(dirtRect);
             else
-                tile.setTextureRect(grassRect);
+                terrainTile.setTextureRect(grassRect);
 
             // Set position using explicit floats to avoid narrowing warnings
-            tile.setPosition(sf::Vector2f(
+            terrainTile.setPosition(sf::Vector2f(
                 static_cast<float>(j * tileSize),
                 static_cast<float>(windowHeight - tileSize * (i + 1))
             ));
 
-            terrainRow.push_back(tile);
+            terrainRow.push_back(terrainTile);
         }
     }   
 
@@ -161,6 +176,8 @@ int main(){
         window.clear();
 
         // Draw terrain
+        window.draw(skySprite);
+        
         for (auto &tile : terrainRow){
             window.draw(tile);
         }
