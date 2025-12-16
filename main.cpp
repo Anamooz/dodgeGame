@@ -1,6 +1,23 @@
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <random>
+#include <algorithm>
+
+struct Bee{
+    sf::Sprite sprite;
+    int currentFrame = 0;
+    float animTimer = 0.f;
+    float fallSpeed = 150.f;
+
+    Bee(const sf::Texture& texture)
+        : sprite(texture)   // construct sprite here
+    {
+        sprite.setTextureRect(sf::IntRect{{0, 0}, {36, 34}});
+        sprite.setOrigin({18.f, 17.f}); // half of 36x34
+    }
+};
+
 
 bool loadTexture(sf::Texture& texture, const std::string& path);
 void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window);
@@ -13,6 +30,7 @@ int main(){
     sf::Texture runTexture;
     sf::Texture terrainTexture;
     sf::Texture skyTexture;
+    sf::Texture beeTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         return -1;
@@ -29,6 +47,10 @@ int main(){
     if(!loadTexture(skyTexture, "Assets/Background/orig_big.png")){
         return -1;
     } 
+
+    if(!loadTexture(beeTexture, "Assets/Enemies/Bee/Idle (36x34).png")){
+        return -1;
+    }
 
     // ------Terrain setup--------
     sf::Sprite terrainTile(terrainTexture);
@@ -103,6 +125,21 @@ int main(){
     float speed = 200.f;       // pixels per second
     bool facingLeft = false;
 
+    // ------Bee setup--------
+    std::vector<Bee> bees;
+    sf::Clock spawnClock;
+
+    const float spawnInterval = 1.f;
+
+    const int beeFrameCount = 6;
+    const int beeFrameWidth  = 36;
+    const int beeFrameHeight = 34;
+    const float beeAnimSpeed = 0.1f; // seconds per frame
+
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_int_distribution<int> xDist(
+    beeFrameWidth / 2,
+    window.getSize().x - beeFrameWidth / 2);
 
     sf::Clock clock;
 
@@ -112,6 +149,18 @@ int main(){
             if (event->is<sf::Event::Closed>())
                 window.close();
         }
+        // ------Spawn bees------
+        if (spawnClock.getElapsedTime().asSeconds() >= spawnInterval){
+            spawnClock.restart();
+
+            Bee bee(beeTexture);
+
+            float randomX = static_cast<float>(xDist(rng));
+            bee.sprite.setPosition({randomX, -beeFrameHeight / 2.f});
+
+            bees.push_back(bee);
+        }
+
 
         float dt = clock.restart().asSeconds();
 
@@ -172,16 +221,57 @@ int main(){
             sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
         }
 
+        // --- Bee Animation and Movement ---
+
+        for (auto& bee : bees){
+            // Falling movement
+            bee.sprite.move({0.f, bee.fallSpeed * dt});
+
+            // Animation
+            bee.animTimer += dt;
+            if (bee.animTimer >= beeAnimSpeed){
+                bee.animTimer = 0.f;
+                bee.currentFrame = (bee.currentFrame + 1) % beeFrameCount;
+
+                bee.sprite.setTextureRect(sf::IntRect{
+                    {bee.currentFrame * beeFrameWidth, 0},
+                    {beeFrameWidth, beeFrameHeight}
+                });
+            }
+        }
+        // Remove bees once it hits grass (top of terrain)
+        bees.erase(
+            std::remove_if(bees.begin(), bees.end(),
+                [&](const Bee& bee)
+                {
+                    float beeTop =
+                        bee.sprite.getPosition().y - beeFrameHeight / 2.f;
+
+                    return beeTop >= grassTopY;
+                }),
+            bees.end()
+        );
+
+
         // -------Rendering---------
         window.clear();
 
-        // Draw terrain
+        // Draw sky
         window.draw(skySprite);
-        
+
+        // Draw bees
+        for (const auto& bee : bees){
+            window.draw(bee.sprite);
+        }
+
+        // Draw terrain
         for (auto &tile : terrainRow){
             window.draw(tile);
         }
+
+        // Draw player sprite
         window.draw(sprite);
+        
         window.display();
     }
 }
