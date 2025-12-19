@@ -4,6 +4,10 @@
 #include <random>
 #include <algorithm>
 
+const int FONT_CHAR_WIDTH  = 8;
+const int FONT_CHAR_HEIGHT = 10;
+const int FONT_COLUMNS = 10;
+const int FONT_ROW = 3;
 struct Bee{
     sf::Sprite sprite;
     int currentFrame = 0;
@@ -18,37 +22,52 @@ struct Bee{
     }
 };
 
-
 bool loadTexture(sf::Texture& texture, const std::string& path);
 void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window);
+void drawScore(sf::RenderWindow& window, const sf::Texture& textTexture, int score, sf::Vector2f position, float scale = 3.f);
 
 int main(){
     sf::RenderWindow window(sf::VideoMode({800, 600}), "Dodge Game");
     window.setFramerateLimit(60);
+
+    float scoreTimer = 0.f;
+    int score = 0;
+    const int scoreRate = 200;
 
     sf::Texture idleTexture;
     sf::Texture runTexture;
     sf::Texture terrainTexture;
     sf::Texture skyTexture;
     sf::Texture beeTexture;
+    sf::Texture textTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
+        std::cout << "Failed to load idle texture\n";
         return -1;
     }
 
     if(!loadTexture(runTexture, "Assets/Main Characters/Pink Man/Run (32x32).png")){
+        std::cout << "Failed to load run texture\n";
         return -1;
     }
 
     if(!loadTexture(terrainTexture, "Assets/Terrain/Terrain (16x16).png")){
+        std::cout << "Failed to load terrain texture\n";
         return -1;
     } 
     
     if(!loadTexture(skyTexture, "Assets/Background/orig_big.png")){
+        std::cout << "Failed to load sky texture\n";
         return -1;
     } 
 
     if(!loadTexture(beeTexture, "Assets/Enemies/Bee/Idle (36x34).png")){
+        std::cout << "Failed to load bee texture\n";
+        return -1;
+    }
+
+    if(!loadTexture(textTexture, "Assets/Menu/Text/Text (White) (8x10).png")){
+        std::cout << "Failed to load text texture\n";
         return -1;
     }
 
@@ -110,7 +129,7 @@ int main(){
     sprite.setPosition({400.f, grassTopY - playerHalf});
 
 
-    // Animation variables
+                               // Animation variables
     const int idleFrames = 11; // Number of frames in idle animation
     const int runFrames  = 12; // Number of frames in run animation
 
@@ -118,11 +137,10 @@ int main(){
     float frameTimer = 0.f;
     float frameSpeed = 0.10f;
 
-    // Keep track of current texture pointer
-    const sf::Texture* currentTexture = &idleTexture;
+    const sf::Texture* currentTexture = &idleTexture; // Keep track of current texture pointer
 
     // ------Movement setup--------
-    float speed = 200.f;       // pixels per second
+    float speed = 200.f; // pixels per second
     bool facingLeft = false;
 
     // ------Bee setup--------
@@ -149,7 +167,13 @@ int main(){
             if (event->is<sf::Event::Closed>())
                 window.close();
         }
-        // ------Spawn bees------
+
+        float dt = clock.restart().asSeconds(); // Time since last frame
+
+        scoreTimer += dt;
+        score += static_cast<int>(scoreRate * dt);
+
+    // ------Spawn bees------
         if (spawnClock.getElapsedTime().asSeconds() >= spawnInterval){
             spawnClock.restart();
 
@@ -161,10 +185,7 @@ int main(){
             bees.push_back(bee);
         }
 
-
-        float dt = clock.restart().asSeconds();
-
-         // --- Movement Input ---
+    // --- Movement Input ---
         bool moving = false;
 
         // Move left
@@ -185,15 +206,15 @@ int main(){
             moving = true;
         }
 
-        clampToScreen(sprite, window);
+        clampToScreen(sprite, window); 
 
         // Flip sprite by using scale
         sprite.setScale({facingLeft ? -1.f : 1.f, 1.f});
 
-        // --- ANIMATION ---
+    // --- Animation ---
         frameTimer += dt;
 
-        // --- SWITCH TEXTURE IF STATE CHANGES ---
+        // Switching texture if state changes
         if (moving && currentTexture != &runTexture){
             sprite.setTexture(runTexture, false); //keep false so the rect isn't reset to full png
             currentTexture = &runTexture;
@@ -221,7 +242,7 @@ int main(){
             sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
         }
 
-        // --- Bee Animation and Movement ---
+    // --- Bee Animation and Movement ---
 
         for (auto& bee : bees){
             // Falling movement
@@ -271,12 +292,15 @@ int main(){
 
         // Draw player sprite
         window.draw(sprite);
+
+        // Draw score
+        drawScore(window, textTexture, score, {20.f, 20.f});
         
         window.display();
     }
 }
 
-bool loadTexture(sf::Texture& texture, const std::string& path){
+bool loadTexture(sf::Texture& texture, const std::string& path){ //function to load textures
     if (!texture.loadFromFile(path)){
         std::cout << "Failed to load: " << path << "\n";
         return false;
@@ -284,7 +308,7 @@ bool loadTexture(sf::Texture& texture, const std::string& path){
     return true;
 }
 
-void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window){
+void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window){ //function to keep player on screen
     auto bounds = sprite.getLocalBounds();  // Get the actual local size of the sprite (32x32)
     float halfW = bounds.size.x * 0.5f;     // =16
     float halfH = bounds.size.y * 0.5f;
@@ -303,6 +327,36 @@ void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window){
 
     sprite.setPosition(pos);
 }
+
+    void drawScore(
+        sf::RenderWindow& window,
+        const sf::Texture& textTexture, 
+        int score,
+        sf::Vector2f position,
+        float scale
+    ){
+        std::string scoreStr = std::to_string(score);
+
+        sf::Sprite digitSprite(textTexture);
+        digitSprite.setScale({scale, scale});
+
+        for (std::size_t i = 0; i < scoreStr.size(); ++i){
+            int digit = scoreStr[i] - '0';
+
+            digitSprite.setTextureRect(sf::IntRect{
+                { digit * 8, FONT_ROW * 10 },
+                { 8, 10 }
+            });
+
+            digitSprite.setPosition({
+                position.x + i * 8.f * scale,
+                position.y
+            });
+
+            window.draw(digitSprite);
+        }
+    }
+
 
 
 
