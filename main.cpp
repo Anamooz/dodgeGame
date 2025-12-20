@@ -41,6 +41,7 @@ int main(){
     sf::Texture skyTexture;
     sf::Texture beeTexture;
     sf::Texture textTexture;
+    sf::Texture heartTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         std::cout << "Failed to load idle texture\n";
@@ -74,6 +75,11 @@ int main(){
 
     if(!loadTexture(textTexture, "Assets/Menu/Text/Text (White) (8x10).png")){
         std::cout << "Failed to load text texture\n";
+        return -1;
+    }
+
+    if(!loadTexture(heartTexture, "Assets/Menu/Buttons/Heart (32x32).png")){
+        std::cout << "Failed to load heart texture\n";
         return -1;
     }
 
@@ -145,6 +151,15 @@ int main(){
 
     const sf::Texture* currentTexture = &idleTexture; // Keep track of current texture pointer
 
+    // ------ Hearts Setup------
+    const int maxLives = 3;
+    int lives = maxLives;
+
+    sf::Sprite heartSprite(heartTexture);
+
+    const float heartSize = 32.f;   
+    const float heartSpacing = 8.f;
+
     // ------Player hit animation setup--------
     bool isHit = false; 
 
@@ -213,6 +228,9 @@ int main(){
 
                     sprite.setTexture(hitTexture, false);
                     sprite.setTextureRect(sf::IntRect{{0, 0}, {32, 32}});
+
+                    // Lose a heart
+                    lives = std::max(0, lives - 1);
 
                     break;
                 }
@@ -348,13 +366,23 @@ int main(){
         // Draw sky
         window.draw(skySprite);
 
+        // Draw hearts (top-right)
+        for (int i = 0; i < lives; ++i) {
+            float x = window.getSize().x
+                    - (i + 1) * (heartSize + heartSpacing);
+            float y = 10.f;
+
+            heartSprite.setPosition({x, y});
+            window.draw(heartSprite);
+        }
+
         // Draw bees
-        for (const auto& bee : bees){
+        for (const auto& bee : bees) {
             window.draw(bee.sprite);
         }
 
         // Draw terrain
-        for (auto &tile : terrainRow){
+        for (auto &tile : terrainRow) {
             window.draw(tile);
         }
 
