@@ -160,6 +160,17 @@ int main(){
     const float heartSize = 32.f;   
     const float heartSpacing = 8.f;
 
+    // ------ Invincibility Frames ------
+    bool invincible = false;
+    float invincibilityTimer = 0.f;
+    const float invincibilityDuration = 1.2f;
+
+        // Blink control
+    float blinkTimer = 0.f;
+    const float blinkInterval = 0.1f;
+    bool visible = true;
+
+
     // ------Player hit animation setup--------
     bool isHit = false; 
 
@@ -214,14 +225,41 @@ int main(){
 
             bees.push_back(bee);
         }
+
+    // ------ Invincibility Update ------
+        if (invincible) {
+            invincibilityTimer += dt;
+            blinkTimer += dt;
+
+            if (blinkTimer >= blinkInterval) {
+                blinkTimer = 0.f;
+                visible = !visible;
+                sprite.setColor(visible ? sf::Color::White : sf::Color(255, 255, 255, 0));
+            }
+
+            if (invincibilityTimer >= invincibilityDuration) {
+                invincible = false;
+                visible = true;
+                sprite.setColor(sf::Color::White);
+            }
+    }
+    
     // --- Hit Detection ---
-        if (!isHit) {
-            for (auto& bee : bees) {
-                if (bee.sprite
+        if (!invincible){
+            for (auto it = bees.begin(); it != bees.end(); ++it) {
+                if (it->sprite
                         .getGlobalBounds()
                         .findIntersection(sprite.getGlobalBounds())
                         .has_value())
                 {
+                    // Lose a heart
+                    lives = std::max(0, lives - 1);
+
+                    invincible = true;
+                    invincibilityTimer = 0.f;
+                    blinkTimer = 0.f;
+                    visible = false;
+
                     isHit = true;
                     hitFrame = 0;
                     hitTimer = 0.f;
@@ -229,8 +267,8 @@ int main(){
                     sprite.setTexture(hitTexture, false);
                     sprite.setTextureRect(sf::IntRect{{0, 0}, {32, 32}});
 
-                    // Lose a heart
-                    lives = std::max(0, lives - 1);
+                    // Remove the bee that hit the player
+                    bees.erase(it);
 
                     break;
                 }
