@@ -36,6 +36,7 @@ int main(){
 
     sf::Texture idleTexture;
     sf::Texture runTexture;
+    sf::Texture hitTexture;
     sf::Texture terrainTexture;
     sf::Texture skyTexture;
     sf::Texture beeTexture;
@@ -48,6 +49,11 @@ int main(){
 
     if(!loadTexture(runTexture, "Assets/Main Characters/Pink Man/Run (32x32).png")){
         std::cout << "Failed to load run texture\n";
+        return -1;
+    }
+
+    if(!loadTexture(hitTexture, "Assets/Main Characters/Pink Man/Hit (32x32).png")){
+        std::cout << "Failed to load hit texture\n";
         return -1;
     }
 
@@ -122,7 +128,7 @@ int main(){
         }
     }   
 
-    // ------Sprite setup--------
+    // ------Sprite player setup--------
     sf::Sprite sprite(idleTexture); //start idle texture
     sprite.setTextureRect(sf::IntRect{ {0, 0}, {32, 32} });
     sprite.setOrigin({16.f, 16.f});
@@ -138,6 +144,15 @@ int main(){
     float frameSpeed = 0.10f;
 
     const sf::Texture* currentTexture = &idleTexture; // Keep track of current texture pointer
+
+    // ------Player hit animation setup--------
+    bool isHit = false; 
+
+    const int hitFrames = 7;
+    const float hitAnimSpeed = 0.08f;
+    float hitTimer = 0.f;
+    int hitFrame = 0;
+
 
     // ------Movement setup--------
     float speed = 200.f; // pixels per second
@@ -184,6 +199,56 @@ int main(){
 
             bees.push_back(bee);
         }
+    // --- Hit Detection ---
+        if (!isHit) {
+            for (auto& bee : bees) {
+                if (bee.sprite
+                        .getGlobalBounds()
+                        .findIntersection(sprite.getGlobalBounds())
+                        .has_value())
+                {
+                    isHit = true;
+                    hitFrame = 0;
+                    hitTimer = 0.f;
+
+                    sprite.setTexture(hitTexture, false);
+                    sprite.setTextureRect(sf::IntRect{{0, 0}, {32, 32}});
+
+                    break;
+                }
+            }
+        }
+
+    // --- Hit Animation ---
+        if (isHit){
+            hitTimer += dt;
+
+            if (hitTimer >= hitAnimSpeed) {
+                hitTimer = 0.f;
+                hitFrame++;
+
+                if (hitFrame >= hitFrames){
+                    // Hit animation finished
+                    isHit = false;
+
+                    // Return to idle state
+                    sprite.setTexture(idleTexture, false);
+                    currentTexture = &idleTexture;
+                    currentFrame = 0;
+                    frameTimer = 0.f;
+
+                    sprite.setTextureRect(sf::IntRect{{0, 0}, {32, 32}});
+                }
+                else
+                {
+                    sprite.setTextureRect(sf::IntRect{
+                        {hitFrame * 32, 0},
+                        {32, 32}
+                    });
+                }
+            }
+        }
+
 
     // --- Movement Input ---
         bool moving = false;
@@ -210,36 +275,39 @@ int main(){
 
         // Flip sprite by using scale
         sprite.setScale({facingLeft ? -1.f : 1.f, 1.f});
+        
+        // --- Animation ---
+        if(!isHit) { // Ensures hit animation isn't interrupted
+    
+            frameTimer += dt;
 
-    // --- Animation ---
-        frameTimer += dt;
+            // Switching texture if state changes
+            if (moving && currentTexture != &runTexture){
+                sprite.setTexture(runTexture, false); //keep false so the rect isn't reset to full png
+                currentTexture = &runTexture;
+                currentFrame = 0;
+                frameTimer = 0.f;
+                sprite.setTextureRect(sf::IntRect{{0,0},{32,32}}); //keeps rect correct even if the above false is removed
+            }
+            else if (!moving && currentTexture != &idleTexture)
+            {
+                sprite.setTexture(idleTexture, false);
+                currentTexture = &idleTexture;
+                currentFrame = 0;
+                frameTimer = 0.f;
+                sprite.setTextureRect(sf::IntRect{{0,0},{32,32}});
+            }
 
-        // Switching texture if state changes
-        if (moving && currentTexture != &runTexture){
-            sprite.setTexture(runTexture, false); //keep false so the rect isn't reset to full png
-            currentTexture = &runTexture;
-            currentFrame = 0;
-            frameTimer = 0.f;
-            sprite.setTextureRect(sf::IntRect{{0,0},{32,32}}); //keeps rect correct even if the above false is removed
-        }
-        else if (!moving && currentTexture != &idleTexture)
-        {
-            sprite.setTexture(idleTexture, false);
-            currentTexture = &idleTexture;
-            currentFrame = 0;
-            frameTimer = 0.f;
-            sprite.setTextureRect(sf::IntRect{{0,0},{32,32}});
-        }
+            // Advance frame timer
+            if (frameTimer >= frameSpeed){
+                frameTimer = 0.f;
+                if (moving)
+                    currentFrame = (currentFrame + 1) % runFrames;
+                else
+                    currentFrame = (currentFrame + 1) % idleFrames;
 
-        // Advance frame timer
-        if (frameTimer >= frameSpeed){
-            frameTimer = 0.f;
-            if (moving)
-                currentFrame = (currentFrame + 1) % runFrames;
-            else
-                currentFrame = (currentFrame + 1) % idleFrames;
-
-            sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
+                sprite.setTextureRect(sf::IntRect{{currentFrame*32,0},{32,32}});
+            }
         }
 
     // --- Bee Animation and Movement ---
