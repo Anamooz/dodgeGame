@@ -152,7 +152,7 @@ int main(){
     const sf::Texture* currentTexture = &idleTexture; // Keep track of current texture pointer
 
     // ------ Hearts Setup------
-    const int maxLives = 3;
+    const int maxLives = 5;
     int lives = maxLives;
 
     sf::Sprite heartSprite(heartTexture);
@@ -163,11 +163,11 @@ int main(){
     // ------ Invincibility Frames ------
     bool invincible = false;
     float invincibilityTimer = 0.f;
-    const float invincibilityDuration = 1.2f;
+    const float invincibilityDuration = 2.5f;
 
         // Blink control
     float blinkTimer = 0.f;
-    const float blinkInterval = 0.1f;
+    const float blinkInterval = 0.15f;
     bool visible = true;
 
 
@@ -245,7 +245,7 @@ int main(){
     }
     
     // --- Hit Detection ---
-        if (!invincible){
+        if (!invincible && !isHit) {
             for (auto it = bees.begin(); it != bees.end(); ++it) {
                 if (it->sprite
                         .getGlobalBounds()
