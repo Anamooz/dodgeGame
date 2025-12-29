@@ -3,11 +3,28 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
+#include <unordered_map>
 
 const int FONT_CHAR_WIDTH  = 8;
 const int FONT_CHAR_HEIGHT = 10;
 const int FONT_COLUMNS = 10;
 const int FONT_ROW = 3;
+
+std::unordered_map<char, int> charIndex = {
+    {'A', 0}, {'B', 1}, {'C', 2}, {'D', 3}, {'E', 4},
+    {'F', 5}, {'G', 6}, {'H', 7}, {'I', 8}, {'J', 9},
+    {'K',10}, {'L',11}, {'M',12}, {'N',13}, {'O',14},
+    {'P',15}, {'Q',16}, {'R',17}, {'S',18}, {'T',19},
+    {'U',20}, {'V',21}, {'W',22}, {'X',23}, {'Y',24},
+    {'Z',25},
+    {' ', 49}
+};
+
+enum class GameState{
+    StartScreen,
+    Playing,
+    GameOver
+};
 struct Bee{
     sf::Sprite sprite;
     int currentFrame = 0;
@@ -30,6 +47,8 @@ int main(){
     sf::RenderWindow window(sf::VideoMode({800, 600}), "Dodge Game");
     window.setFramerateLimit(60);
 
+    GameState gameState = GameState::StartScreen;
+
     float scoreTimer = 0.f;
     int score = 0;
     const int scoreRate = 200;
@@ -39,9 +58,11 @@ int main(){
     sf::Texture hitTexture;
     sf::Texture terrainTexture;
     sf::Texture skyTexture;
+    sf::Texture darkSkyTexture;
     sf::Texture beeTexture;
     sf::Texture textTexture;
     sf::Texture heartTexture;
+    sf::Texture playButtonTexture;
 
     if(!loadTexture(idleTexture, "Assets/Main Characters/Pink Man/Idle (32x32).png")){
         std::cout << "Failed to load idle texture\n";
@@ -83,7 +104,71 @@ int main(){
         return -1;
     }
 
+    if(!loadTexture(playButtonTexture, "Assets/Menu/Buttons/Play.png")){
+        std::cout << "Failed to load play button texture\n";
+        return -1;
+    }
+
+    if(!loadTexture(darkSkyTexture, "Assets/Background/darkSky.png")){
+        std::cout << "Failed to load dark sky texture\n";
+        return -1;
+    }
+
+    // ------Start Screen setup--------
+
+   std::vector<sf::Sprite> titleSprites;
+   std::string title = "DODGE GAME";
+
+   float scale = 4.f;
+   float spacing = 2.f;
+
+   for (std::size_t i = 0; i < title.size(); ++i) {
+        char c = title[i];
+
+        if (charIndex.find(c) == charIndex.end())
+            continue;
+
+        int index = charIndex[c];
+        int col = index % FONT_COLUMNS;
+        int row = index / FONT_COLUMNS;
+
+        sf::Sprite letter(textTexture);
+        letter.setTextureRect({
+            { col * FONT_CHAR_WIDTH, row * FONT_CHAR_HEIGHT },
+            { FONT_CHAR_WIDTH, FONT_CHAR_HEIGHT }
+        });
+
+        letter.setScale({scale, scale});
+        letter.setPosition({
+            200.f + i * (FONT_CHAR_WIDTH * scale + spacing),
+            120.f
+        });
+
+        titleSprites.push_back(letter);
+    }
+
+
+    // ------Play Button setup--------
+    sf::Sprite playButton(playButtonTexture);
+
+    // Center button
+    sf::Vector2f center{
+        window.getSize().x / 2.f,
+        window.getSize().y / 2.f
+    };
+
+    auto bounds = playButton.getLocalBounds();
+    playButton.setOrigin({
+        bounds.size.x / 2.f,
+        bounds.size.y / 2.f
+    });
+
+    playButton.setPosition(center);
+
     // ------Terrain setup--------
+    sf::Sprite darkSkySprite(darkSkyTexture);
+    darkSkySprite.setTextureRect(sf::IntRect{ {500,0}, {800,600} });
+
     sf::Sprite terrainTile(terrainTexture);
     terrainTile.setTextureRect(sf::IntRect{ {0,0},{16,16} }); 
 
@@ -152,7 +237,7 @@ int main(){
     const sf::Texture* currentTexture = &idleTexture; // Keep track of current texture pointer
 
     // ------ Hearts Setup------
-    const int maxLives = 5;
+    const int maxLives = 3;
     int lives = maxLives;
 
     sf::Sprite heartSprite(heartTexture);
@@ -207,12 +292,34 @@ int main(){
         while (auto event = window.pollEvent()){
             if (event->is<sf::Event::Closed>())
                 window.close();
+
+            if (gameState == GameState::StartScreen) {
+                if (event->is<sf::Event::MouseButtonPressed>()) {
+                    auto mouse = event->getIf<sf::Event::MouseButtonPressed>();
+                    if (mouse->button == sf::Mouse::Button::Left) {
+                        sf::Vector2f mousePos =
+                            window.mapPixelToCoords(mouse->position);
+
+                        if (playButton.getGlobalBounds().contains(mousePos)) {
+                            gameState = GameState::Playing;
+
+                            // Reset game values once
+                            lives = 3;
+                            score = 0;
+                            bees.clear();
+                            clock.restart();
+                        }
+                    }
+                }
+            }
         }
 
         float dt = clock.restart().asSeconds(); // Time since last frame
 
         scoreTimer += dt;
         score += static_cast<int>(scoreRate * dt);
+
+    if (gameState == GameState::Playing) {      
 
     // ------Spawn bees------
         if (spawnClock.getElapsedTime().asSeconds() >= spawnInterval){
@@ -397,38 +504,51 @@ int main(){
             bees.end()
         );
 
+    } // End of game state update
 
         // -------Rendering---------
         window.clear();
 
-        // Draw sky
-        window.draw(skySprite);
+        if (gameState == GameState::StartScreen) {
+            window.draw(darkSkySprite);
 
-        // Draw hearts (top-right)
-        for (int i = 0; i < lives; ++i) {
-            float x = window.getSize().x
-                    - (i + 1) * (heartSize + heartSpacing);
-            float y = 10.f;
+            for (auto& letter : titleSprites) {
+                window.draw(letter);
+            }
 
-            heartSprite.setPosition({x, y});
-            window.draw(heartSprite);
+            window.draw(playButton);
         }
+        else if (gameState == GameState::Playing) {
+            // Draw sky
+            window.draw(skySprite);
 
-        // Draw bees
-        for (const auto& bee : bees) {
-            window.draw(bee.sprite);
+            // Draw hearts (top-right)
+            for (int i = 0; i < lives; ++i) {
+                float x = window.getSize().x
+                        - (i + 1) * (heartSize + heartSpacing);
+                float y = 10.f;
+
+                heartSprite.setPosition({x, y});
+                window.draw(heartSprite);
+            }
+
+            // Draw bees
+            for (const auto& bee : bees) {
+                window.draw(bee.sprite);
+            }
+
+            // Draw terrain
+            for (auto &tile : terrainRow) {
+                window.draw(tile);
+            }
+
+            // Draw player sprite
+            window.draw(sprite);
+
+            // Draw score
+            drawScore(window, textTexture, score, {20.f, 20.f});
+
         }
-
-        // Draw terrain
-        for (auto &tile : terrainRow) {
-            window.draw(tile);
-        }
-
-        // Draw player sprite
-        window.draw(sprite);
-
-        // Draw score
-        drawScore(window, textTexture, score, {20.f, 20.f});
         
         window.display();
     }
@@ -462,34 +582,36 @@ void clampToScreen(sf::Sprite& sprite, const sf::RenderWindow& window){ //functi
     sprite.setPosition(pos);
 }
 
-    void drawScore(
-        sf::RenderWindow& window,
-        const sf::Texture& textTexture, 
-        int score,
-        sf::Vector2f position,
-        float scale
-    ){
-        std::string scoreStr = std::to_string(score);
+void drawScore(
+    sf::RenderWindow& window,
+    const sf::Texture& textTexture, 
+    int score,
+    sf::Vector2f position,
+    float scale
+){
 
-        sf::Sprite digitSprite(textTexture);
-        digitSprite.setScale({scale, scale});
+    std::string scoreStr = std::to_string(score);
 
-        for (std::size_t i = 0; i < scoreStr.size(); ++i){
-            int digit = scoreStr[i] - '0';
+    sf::Sprite digitSprite(textTexture);
+    digitSprite.setScale({scale, scale});
 
-            digitSprite.setTextureRect(sf::IntRect{
-                { digit * 8, FONT_ROW * 10 },
-                { 8, 10 }
-            });
+    for (std::size_t i = 0; i < scoreStr.size(); ++i){
+        int digit = scoreStr[i] - '0';
 
-            digitSprite.setPosition({
-                position.x + i * 8.f * scale,
-                position.y
-            });
+        digitSprite.setTextureRect(sf::IntRect{
+            { digit * 8, FONT_ROW * 10 },
+            { 8, 10 }
+        });
 
-            window.draw(digitSprite);
-        }
+        digitSprite.setPosition({
+            position.x + i * 8.f * scale,
+            position.y
+        });
+
+        window.draw(digitSprite);
     }
+}
+
 
 
 
